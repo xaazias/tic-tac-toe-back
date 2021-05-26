@@ -75,7 +75,7 @@ const checkWin = (char, arr) => {
 }
 
 /* Game rooms e.g [{ name: GAME_ID, users: [USER_ID_1, USER_ID_2] }...] */
-const rooms = []
+let rooms = []
 
 app.get('/random', function(req, res) {
   res.json(rooms);
@@ -175,9 +175,11 @@ io.on("connect", (socket) => {
     })
 
      /* emit message to GAME_ROOM as not enough players for game to continue */
-     if (leftRoom !== undefined && leftRoom.users !== undefined && leftRoom.users.length > 0) {
+    if (leftRoom !== undefined && leftRoom.users !== undefined && leftRoom.users.length === 1) {
       io.to(leftRoom.users[0]).emit("playersConnected", false)
     }
+
+    rooms = rooms.filter(room => room.users.length > 0)
 
     console.log(rooms) // log rooms on player 'disconnect'
   })
