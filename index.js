@@ -1,5 +1,8 @@
 const app = require("express")()
+const cors = require("cors")
 const http = require("http").createServer(app)
+
+app.use(cors())
 
 /* socket.io WS server */
 const io = require("socket.io")(http, {
@@ -74,6 +77,10 @@ const checkWin = (char, arr) => {
 /* Game rooms e.g [{ name: GAME_ID, users: [USER_ID_1, USER_ID_2] }...] */
 const rooms = []
 
+app.get('/random', function(req, res) {
+  res.json(rooms);
+});
+
 /* WS connect event */
 io.on("connect", (socket) => {
   /* WS "join" event with arguments of USER_ID and GAME_ROOM */
@@ -106,6 +113,7 @@ io.on("connect", (socket) => {
 
       /* WS emit random USER to make first turn */
       io.to(rooms[roomIndex].users[0]).emit("turn", 1)
+      io.to(rooms[roomIndex].users[1]).emit("turn", 0)
 
       /* WS emit room to be ready as players-connected */
       io.to(room).emit("playersConnected", true)
@@ -114,8 +122,14 @@ io.on("connect", (socket) => {
     console.log(id, room, rooms) // log id, room, rooms on player 'connect'
   })
 
+  socket.on("restartGame", ({ room, grid }) => {
+    grid.forEach(item => item.flag = null)
+    io.to(room).emit("refreshGrid", { grid })
+  })
+
   /* WS on 'step' event */
-  socket.on("step", ({ room, grid, step }) => {
+  socket.on("step", ({ id, room, grid, step }) => {
+
     /* on each step emit current grid to room */
     io.to(room).emit("step", { grid })
 
@@ -123,12 +137,12 @@ io.on("connect", (socket) => {
     io.to(room).emit("nextStep", step + 1)
 
     if (checkWin("x", grid)) 
-    io.to(room).emit("finishGame", { status: "x" })
+    io.to(room).emit("finishGame", { id, status: "x" })
 
     if (checkWin("o", grid)) 
-      io.to(room).emit("finishGame", { status: "o" })
+      io.to(room).emit("finishGame", { id, status: "o" })
 
-    if (!checkWin("x", grid) && !checkWin("o", grid) && grid.length === step) 
+    if (!checkWin("x", grid) && !checkWin("o", grid) && grid.length === step + 1) 
       io.to(room).emit("finishGame", { status: null })
   })
 
@@ -143,6 +157,8 @@ io.on("connect", (socket) => {
     /* get USERID */
     const id = socket.id
 
+    let leftRoom
+
     /* search for user in all rooms */
     rooms.forEach((room) => {
       /* get USER index in room's users array */
@@ -150,12 +166,18 @@ io.on("connect", (socket) => {
 
       /* if user is found */
       if (index !== -1) {
+
+        leftRoom = room
+
         /* delete USER from array */
         room.users.splice(index, 1)
-        /* emit message to GAME_ROOM as not enough players for game to continue */
-        socket.to(room).emit("playersConnected", false)
       }
     })
+
+     /* emit message to GAME_ROOM as not enough players for game to continue */
+     if (leftRoom !== undefined && leftRoom.users !== undefined && leftRoom.users.length > 0) {
+      io.to(leftRoom.users[0]).emit("playersConnected", false)
+    }
 
     console.log(rooms) // log rooms on player 'disconnect'
   })
