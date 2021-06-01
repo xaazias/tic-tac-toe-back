@@ -6,13 +6,15 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.17.1",
+    "jsdoc": "^3.6.7",
     "socket.io": "^3.1.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.7"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "jsdoc": "./node_modules/.bin/jsdoc index.js"
   },
   "keywords": [],
   "author": "",
